@@ -58,6 +58,8 @@ def main(dataloc = '//olsenlab1/data/rsna_data'):
     desired_size = 512
 
     # set up generators
+    categories = utils.define_categories()
+    
     train_generator = utils.Dicom_Image_Generator(
         train_df.reset_index(),
         ycols=categories,
