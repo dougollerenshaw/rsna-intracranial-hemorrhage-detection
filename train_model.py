@@ -42,7 +42,7 @@ def make_y_image(generator,model,filename):
     ax[1].set_title('y_pred')
     fig.savefig(filename)
 
-def main():
+def main(dataloc = '//olsenlab1/data/rsna_data'):
     # load training df
     tdf = utils.load_training_data(dataloc)
 
@@ -56,7 +56,7 @@ def main():
 
     batch_size = 16
     desired_size = 512
-    
+
     # set up generators
     train_generator = utils.Dicom_Image_Generator(
         train_df.reset_index(),
