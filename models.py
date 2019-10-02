@@ -9,14 +9,14 @@ from keras.optimizers import SGD
 from keras.optimizers import Adam
 
 
-def models(model_name, input_image_size):
+def models(model_name, input_image_size, number_of_output_categories):
     model_translator = {
-        'vgg': vgg_convnet(input_image_size)
+        'vgg': vgg_convnet(input_image_size, number_of_output_categories)
     }
     return model_translator[model_name]
 
 
-def vgg_convnet(input_image_size):
+def vgg_convnet(input_image_size, number_of_output_categories):
     # vgg like convnet from here: https://keras.io/getting-started/sequential-model-guide/
     model = Sequential()
     # input: 100x100 images with 3 channels -> (100, 100, 3) tensors.
@@ -36,12 +36,12 @@ def vgg_convnet(input_image_size):
     model.add(Dense(256, activation='relu'))
     model.add(Dropout(0.5))
     # replace 'softmax' with 'sigmoid' to allow probabilities not to sum to 1
-    model.add(Dense(5, activation='sigmoid'))
+    model.add(Dense(number_of_output_categories, activation='sigmoid'))
 
     model.compile(
         loss='binary_crossentropy',
         optimizer=Adam(),
-        metrics=['accuracy']
+        metrics=['categorical_accuracy','accuracy']
     )
 
     return model

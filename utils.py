@@ -126,7 +126,6 @@ def make_y_image(generator, model, filename):
     fig.savefig(filename)
 
 def load_training_data(dataloc):
-    dataloc = '//olsenlab1/data/rsna_data'
 
     traindf = pd.read_csv(os.path.join(dataloc,'stage_1_train.csv'))
 
@@ -142,20 +141,21 @@ def load_training_data(dataloc):
         index='filename', columns='type', values='Label').reset_index()
     tdf_all.index.rename('index',inplace=True)
     positive_examples = tdf_all.query('any == 1')
-    positive_examples.drop(columns='any',inplace=True)
+    # positive_examples.drop(columns='any',inplace=True)
 
     categories = [c for c in positive_examples.columns if c != 'filename']
 
     null_examples = tdf_all.query('any == 0')
-    null_examples.drop(columns='any',inplace=True)
+    # null_examples.drop(columns='any',inplace=True)
 
     tdf = pd.concat([positive_examples,null_examples.sample(len(positive_examples),random_state=0)])
 
     return tdf
 
-def load_test_data(datloc):
+def load_test_data(dataloc):
     test_filenames = os.listdir(os.path.join(dataloc,'stage_1_test_images'))
     d = {'filename':test_filenames}
+    categories = define_categories(include_any=True)
     d.update({cat:np.zeros(len(test_filenames)) for cat in categories})
     testdf = pd.DataFrame(d)
     testdf['ID'] = testdf['filename'].map(lambda x:'ID_'+x.split("_")[1][:-4])

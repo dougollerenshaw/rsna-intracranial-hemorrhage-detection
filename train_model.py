@@ -42,23 +42,23 @@ def make_y_image(generator,model,filename):
     ax[1].set_title('y_pred')
     fig.savefig(filename)
 
-def main(dataloc = '//olsenlab1/data/rsna_data'):
+def main(dataloc = '/mnt/win_f/rsna_data'):
     # load training df
     tdf = utils.load_training_data(dataloc)
 
     # set up training fraction
     ## train and validate dataframes
-    training_fraction = 1
+    training_fraction = 0.15
     shuff = tdf.sample(frac=training_fraction)
-    train_df = shuff.iloc[:int(0.85*len(shuff))]
-    validate_df = shuff.iloc[int(0.85*len(shuff)):]
+    train_df = shuff.iloc[:int(0.90*len(shuff))]
+    validate_df = shuff.iloc[int(0.10*len(shuff)):]
     len(shuff),len(train_df),len(validate_df)
 
     batch_size = 16
     desired_size = 512
 
     # set up generators
-    categories = utils.define_categories()
+    categories = utils.define_categories(include_any=True)
     
     train_generator = utils.Dicom_Image_Generator(
         train_df.reset_index(),
@@ -78,10 +78,10 @@ def main(dataloc = '//olsenlab1/data/rsna_data'):
 
 
     # load model
-    model = models('vgg', input_image_size=512)
+    model = models('vgg', input_image_size=512, number_of_output_categories=len(categories))
 
-    #load weights (optional)
-    model.load_weights("model_2019.09.29_epoch=2.h5")
+    # #load weights (optional)
+    model.load_weights("model_weights_6_outputs_iteration_CRASH_DUMP=0_2019-10-01 19:52:34.598103.h5")
 
     # train
 
@@ -94,12 +94,12 @@ def main(dataloc = '//olsenlab1/data/rsna_data'):
                 validation_steps=len(validate_df)//batch_size,
                 epochs=15
             )
-            model.save_weights("model_2019.09.29_epoch={}_{}.h5".format(i,str(datetime.datetime.now())))
+            model.save_weights("model_weights_6_outputs_iteration={}_{}.h5".format(i,str(datetime.datetime.now())))
             y_image_filename = os.path.join(dataloc,'y_plot_validate_{}.png'.format(str(datetime.datetime.now())))
             make_y_image(validate_generator,model,y_image_filename)
         except Exception as e:
             print(e)
-            pass
+            model.save_weights("model_weights_6_outputs_iteration_CRASH_DUMP={}_{}.h5".format(i,str(datetime.datetime.now())))
 
 if __name__ == '__main__':
     main()
