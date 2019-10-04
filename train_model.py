@@ -42,7 +42,7 @@ def make_y_image(generator,model,filename):
     ax[1].set_title('y_pred')
     fig.savefig(filename)
 
-def main(dataloc = '/mnt/win_f/rsna_data'):
+def main(dataloc = r'D:\rsna-intracranial-hemorrhage-detection'):
     # load training df
     tdf = utils.load_training_data(dataloc)
 
@@ -55,7 +55,7 @@ def main(dataloc = '/mnt/win_f/rsna_data'):
     len(shuff),len(train_df),len(validate_df)
 
     batch_size = 16
-    desired_size = 512
+    desired_size = 256
 
     # set up generators
     categories = utils.define_categories(include_any=True)
@@ -78,10 +78,10 @@ def main(dataloc = '/mnt/win_f/rsna_data'):
 
 
     # load model
-    model = models('vgg', input_image_size=512, number_of_output_categories=len(categories))
+    model = models('vgg', input_image_size=desired_size, number_of_output_categories=len(categories))
 
     # #load weights (optional)
-    model.load_weights("model_weights_6_outputs_iteration_CRASH_DUMP=0_2019-10-01 19:52:34.598103.h5")
+    #model.load_weights("model_weights_6_outputs_iteration_CRASH_DUMP=0_2019-10-01 19:52:34.598103.h5")
 
     # train
 

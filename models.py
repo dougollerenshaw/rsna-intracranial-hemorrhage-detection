@@ -11,7 +11,8 @@ from keras.optimizers import Adam
 
 def models(model_name, input_image_size, number_of_output_categories):
     model_translator = {
-        'vgg': vgg_convnet(input_image_size, number_of_output_categories)
+        'vgg': vgg_convnet(input_image_size, number_of_output_categories),
+        'inception': inception_imagenet(input_image_size, number_of_output_categories)
     }
     return model_translator[model_name]
 
@@ -36,6 +37,33 @@ def vgg_convnet(input_image_size, number_of_output_categories):
     model.add(Dense(256, activation='relu'))
     model.add(Dropout(0.5))
     # replace 'softmax' with 'sigmoid' to allow probabilities not to sum to 1
+    model.add(Dense(number_of_output_categories, activation='sigmoid'))
+
+    model.compile(
+        loss='binary_crossentropy',
+        optimizer=Adam(),
+        metrics=['categorical_accuracy','accuracy']
+    )
+
+    return model
+
+
+def inception_imagenet(input_image_size, number_of_output_categories):
+
+    # even though this network was trained on RGB images, we can repeati our images on all three channels
+    # so it will play nice
+
+    base_model = InceptionResNetV2(include_top = False,
+                                weights = "imagenet", 
+                                input_shape = (input_image_size,input_image_size,3))
+
+    base_model.trainable = False
+    model = Sequential()
+    model.add(base_model)
+
+    model.add(Flatten())
+    model.add(Dense(256, activation='relu'))
+    model.add(Dropout(0.5))
     model.add(Dense(number_of_output_categories, activation='sigmoid'))
 
     model.compile(
