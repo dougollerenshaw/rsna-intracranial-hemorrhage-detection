@@ -42,9 +42,6 @@ def build_submission(testdf, y_pred, dataloc):
         for ii, cat in enumerate(categories):
             df_output[cat] = y_pred[:, ii]
 
-    def get_all_prob(row):
-        return np.min((1, row[categories].max()))
-    df_output['any'] = df_output[categories].apply(get_all_prob, axis=1)
 
     # using the sample submission as the prototype, iterate through and fill with actual predictions
     df_output.set_index('ID', inplace=True)
@@ -57,7 +54,7 @@ def build_submission(testdf, y_pred, dataloc):
         hem_type = row['ID'].split('_')[2]
         submission.at[idx, 'Label'] = df_output.at[img_id, hem_type]
 
-    submission_filename = os.path.join(dataloc, str(datetime.datetime.now())+'.csv')
+    submission_filename = str(datetime.datetime.now())+'.csv'
     submission.to_csv(submission_filename, index=False)
     return submission_filename
 
@@ -124,5 +121,5 @@ def main(dataloc, path_to_weights, model='vgg', batch_size=16):
 if __name__ == '__main__':
     main(
         dataloc = '/mnt/win_f/rsna_data',
-        path_to_weights = 'model_weights_6_outputs_iteration_CRASH_DUMP=0_2019-10-01 19:52:34.598103.h5'
+        path_to_weights = 'model_weights_6_outputs_iteration=0_2019-10-04 05:38:23.464537.h5'
     )
