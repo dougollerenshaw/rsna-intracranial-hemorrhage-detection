@@ -36,7 +36,7 @@ def build_submission(testdf, y_pred, dataloc):
         warnings.warn(
             'y_pred is {} entries too short. Filling with zeros'.format(mismatch))
         for _ in range(mismatch):
-            y_pred = np.vstack((y_pred, [0, 0, 0, 0, 0]))
+            y_pred = np.vstack((y_pred, [0, 0, 0, 0, 0, 0]))
 
         # populate columns of df_output with predictions
         for ii, cat in enumerate(categories):
