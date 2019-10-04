@@ -7,6 +7,7 @@ from keras.optimizers import RMSprop
 from keras import backend as K
 from keras.optimizers import SGD
 from keras.optimizers import Adam
+from keras.applications.inception_resnet_v2 import InceptionResNetV2
 
 
 def models(model_name, input_image_size, number_of_output_categories):
