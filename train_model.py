@@ -130,16 +130,16 @@ class rsna_model(object):
         self.callbacks = [earlystop, learning_rate_reduction, checkpoint]
 
     def train(self):
-        try:
-            self.model.fit_generator(
-                generator=self.train_generator,
-                steps_per_epoch=len(self.train_df)//self.batch_size,
-                validation_data=self.validate_generator,
-                validation_steps=len(self.validate_df)//self.batch_size,
-                epochs=self.epochs,
-                callbacks = self.callbacks,
-                verbose = 1
-            )
+        
+        self.model.fit_generator(
+            generator=self.train_generator,
+            steps_per_epoch=len(self.train_df)//self.batch_size,
+            validation_data=self.validate_generator,
+            validation_steps=len(self.validate_df)//self.batch_size,
+            epochs=self.epochs,
+            callbacks = self.callbacks,
+            verbose = 1
+        )
 
     def save(self):
             
