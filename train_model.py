@@ -96,16 +96,17 @@ def main(dataloc, weights_path=None):
             )
             
             datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
-            model.save_weights("../untracked_files/model_weights_6_outputs_iteration={}_{}.h5".format(i,datestamp))
-            y_image_filename = '../untracked_files/y_plot_validate_{}.png'.format(datestamp)
+            model.save_weights(os.path.join(dataloc,"model_weights_6_outputs_iteration={}_{}.h5".format(i,datestamp)))
+            y_image_filename = os.path.join(dataloc,'y_plot_validate_{}.png'.format(datestamp))
             make_y_image(validate_generator,model,y_image_filename)
         except Exception as e:
             print(e)
             datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
-            model.save_weights("../untracked_files/model_weights_6_outputs_iteration_CRASH_DUMP={}_{}.h5".format(i,datestamp))
+            model.save_weights(os.path.join(dataloc,"model_weights_6_outputs_iteration_CRASH_DUMP={}_{}.h5".format(i,datestamp)))
 
 if __name__ == '__main__':
+    dataloc='/mnt/win_f/rsna_data'
     main(
-        dataloc = '/mnt/win_f/rsna_data',
-        weights_path = "../untracked_files/model_weights_6_outputs_iteration=0_2019-10-04 05:38:23.464537.H5"
+        dataloc = dataloc,
+        weights_path = os.path.join(dataloc,"model_weights_6_outputs_iteration=0_2019-10-04 05:38:23.464537.H5")
     )
