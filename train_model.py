@@ -117,7 +117,7 @@ class rsna_model(object):
                                                     factor=0.5, 
                                                     min_lr=0.00001)
 
-        checkpoint_name = "model_weights_6_outputs_iteration_{}.h5".format(datestamp)
+        checkpoint_name = "model_weights_6_outputs_iteration_{}.h5".format(self.datestamp)
         checkpoint = ModelCheckpoint(
             checkpoint_name, 
             monitor='val_loss', 
@@ -140,14 +140,13 @@ class rsna_model(object):
                 callbacks = self.callbacks,
                 verbose = 1
             )
+
+    def save(self):
             
-            self.model.save_weights("../untracked_files/model_weights_6_outputs_iteration={}.h5".format(self.datestamp))
-            y_image_filename = '../untracked_files/y_plot_validate_{}.png'.format(self.datestamp)
-            self.make_y_image(self.validate_generator,self.model,y_image_filename)
-        except Exception as e:
-            print(e)
-            datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
-            self.model.save_weights("../untracked_files/model_weights_6_outputs_iteration_CRASH_DUMP={}.h5".format(self.datestamp))
+        self.model.save_weights("../untracked_files/model_weights_6_outputs_iteration={}.h5".format(self.datestamp))
+        y_image_filename = '../untracked_files/y_plot_validate_{}.png'.format(self.datestamp)
+        self.make_y_image(self.validate_generator,self.model,y_image_filename)
+
 
 if __name__ == '__main__':
     model = rsna_model(dataloc = '/mnt/win_f/rsna_data',
