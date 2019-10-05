@@ -42,20 +42,23 @@ def make_y_image(generator,model,filename):
     ax[1].set_title('y_pred')
     fig.savefig(filename)
 
-def main(dataloc = r'D:\rsna-intracranial-hemorrhage-detection'):
+def main(dataloc = r'D:\rsna-intracranial-hemorrhage-detection', 
+        model_name = 'vgg',
+        training_fraction = 0.15,
+        batch_size = 16,
+        img_size = 256,
+        rgb = False,
+        ):
+
     # load training df
     tdf = utils.load_training_data(dataloc)
 
     # set up training fraction
     ## train and validate dataframes
-    training_fraction = 0.15
     shuff = tdf.sample(frac=training_fraction)
     train_df = shuff.iloc[:int(0.90*len(shuff))]
     validate_df = shuff.iloc[int(0.10*len(shuff)):]
     len(shuff),len(train_df),len(validate_df)
-
-    batch_size = 16
-    desired_size = 256
 
     # set up generators
     categories = utils.define_categories(include_any=True)
@@ -63,28 +66,29 @@ def main(dataloc = r'D:\rsna-intracranial-hemorrhage-detection'):
     train_generator = utils.Dicom_Image_Generator(
         train_df.reset_index(),
         ycols=categories,
-        desired_size=desired_size,
+        desired_size=img_size,
         batch_size=batch_size,
-        random_transform=False
+        random_transform=False,
+        rgb=rgb
     )
 
     validate_generator = utils.Dicom_Image_Generator(
         validate_df.reset_index(),
         ycols=categories,
-        desired_size=desired_size,
+        desired_size=img_size,
         batch_size=batch_size,
-        random_transform=False
+        random_transform=False,
+        rgb=rgb
     )
 
 
     # load model
-    model = models('vgg', input_image_size=desired_size, number_of_output_categories=len(categories))
+    model = models(model_name, input_image_size=img_size, number_of_output_categories=len(categories))
 
     # #load weights (optional)
     #model.load_weights("model_weights_6_outputs_iteration_CRASH_DUMP=0_2019-10-01 19:52:34.598103.h5")
 
     # train
-
     for i in range(10):
         try:
             model.fit_generator(

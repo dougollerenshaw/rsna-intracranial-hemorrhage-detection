@@ -51,7 +51,7 @@ def vgg_convnet(input_image_size, number_of_output_categories):
 
 def inception_imagenet(input_image_size, number_of_output_categories):
 
-    # even though this network was trained on RGB images, we can repeati our images on all three channels
+    # even though this network was trained on RGB images, we can repeat our images on all three channels
     # so it will play nice
 
     base_model = InceptionResNetV2(include_top = False,
