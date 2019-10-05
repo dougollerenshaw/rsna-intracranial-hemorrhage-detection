@@ -12,6 +12,7 @@ import shutil
 import urllib
 import warnings
 import datetime
+import fnmatch
 
 import keras
 from keras import metrics
@@ -31,7 +32,7 @@ import tensorflow as tf
 class Dicom_Image_Generator:
     '''adapted from https://www.kaggle.com/kwisatzhaderach/dicom-generator'''
 
-    def __init__(self, df, ycols, subset='train', batch_size=12, desired_size=512, random_transform=True):
+    def __init__(self, df, ycols, subset='train', batch_size=12, desired_size=512, random_transform=True, rgb=False):
         self.df = df
         self.length = len(df)
         self.subset = subset
@@ -40,6 +41,7 @@ class Dicom_Image_Generator:
         self.desired_size = desired_size
         self.ycols = ycols
         self.random_transform = random_transform
+        self.rgb = rgb
 
     def __iter__(self):
         return self
@@ -66,10 +68,19 @@ class Dicom_Image_Generator:
         self.position = 0
 
     def __next__(self):
-        X, y = np.empty((self.batch_size, self.desired_size,
-                         self.desired_size, 1)), []
+        if self.rgb:
+            X, y = np.empty((self.batch_size, self.desired_size,
+                         self.desired_size, 3)), []
+        else:
+            X, y = np.empty((self.batch_size, self.desired_size,
+                            self.desired_size, 1)), []
+
         for i in range(self.batch_size):
             filepath = self.df.iloc[self.position]['filename']
+
+            # there is a missing file, skip this
+            if fnmatch.fnmatch(filepath, '*ID_33fcf4d99*'):
+                continue
 
             image = self.open_image(filepath)
 
@@ -89,8 +100,14 @@ class Dicom_Image_Generator:
                 image = np.zeros_like(image)
                 warnings.warn(
                     'image {} could not be equalized, returning as array of zeros'.format(filepath))
-            X[i] = np.expand_dims(np.expand_dims(
-                image, axis=0), axis=3).astype(float)
+
+            if self.rgb:
+                X[i] = np.expand_dims(np.repeat(
+                    image[..., np.newaxis], 3, -1), axis=0).astype(float)
+            else:
+                X[i] = np.expand_dims(np.expand_dims(
+                    image, axis=0), axis=3).astype(float)
+
             y.append(self.df.iloc[self.position][self.ycols])
             self.position += 1
             if (self.position >= self.length):
