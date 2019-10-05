@@ -85,8 +85,8 @@ def main(dataloc = r'D:\rsna-intracranial-hemorrhage-detection',
     # load model
     model = models(model_name, input_image_size=img_size, number_of_output_categories=len(categories))
 
-    # #load weights (optional)
-    #model.load_weights("model_weights_6_outputs_iteration_CRASH_DUMP=0_2019-10-01 19:52:34.598103.h5")
+    if weights_path is not None:
+        model.load_weights(weights_path)
 
     # train
     for i in range(10):
@@ -96,14 +96,20 @@ def main(dataloc = r'D:\rsna-intracranial-hemorrhage-detection',
                 steps_per_epoch=len(train_df)//batch_size,
                 validation_data=validate_generator,
                 validation_steps=len(validate_df)//batch_size,
-                epochs=15
+                epochs=1
             )
-            model.save_weights("model_weights_6_outputs_iteration={}_{}.h5".format(i,str(datetime.datetime.now())))
-            y_image_filename = os.path.join(dataloc,'y_plot_validate_{}.png'.format(str(datetime.datetime.now())))
+            
+            datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
+            model.save_weights("../untracked_files/model_weights_6_outputs_iteration={}_{}.h5".format(i,datestamp))
+            y_image_filename = '../untracked_files/y_plot_validate_{}.png'.format(datestamp)
             make_y_image(validate_generator,model,y_image_filename)
         except Exception as e:
             print(e)
-            model.save_weights("model_weights_6_outputs_iteration_CRASH_DUMP={}_{}.h5".format(i,str(datetime.datetime.now())))
+            datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
+            model.save_weights("../untracked_files/model_weights_6_outputs_iteration_CRASH_DUMP={}_{}.h5".format(i,datestamp))
 
 if __name__ == '__main__':
-    main()
+    main(
+        dataloc = '/mnt/win_f/rsna_data',
+        weights_path = "../untracked_files/model_weights_6_outputs_iteration=0_2019-10-04 05:38:23.464537.H5"
+    )

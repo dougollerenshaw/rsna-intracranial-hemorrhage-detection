@@ -27,7 +27,7 @@ def build_submission(testdf, y_pred, dataloc):
     # build output dataframe
     df_output = testdf.copy()
 
-    categories = utils.define_categories()
+    categories = utils.define_categories(include_any = True)
 
     if len(y_pred) < len(df_output):
         mismatch = len(df_output) - len(y_pred)
@@ -36,15 +36,12 @@ def build_submission(testdf, y_pred, dataloc):
         warnings.warn(
             'y_pred is {} entries too short. Filling with zeros'.format(mismatch))
         for _ in range(mismatch):
-            y_pred = np.vstack((y_pred, [0, 0, 0, 0, 0, 0]))
+            y_pred = np.vstack((y_pred, np.zeros_like(categories))
 
-        # populate columns of df_output with predictions
-        for ii, cat in enumerate(categories):
-            df_output[cat] = y_pred[:, ii]
+    # populate columns of df_output with predictions
+    for ii, cat in enumerate(categories):
+        df_output[cat] = y_pred[:, ii]
 
-    def get_all_prob(row):
-        return np.min((1, row[categories].max()))
-    df_output['any'] = df_output[categories].apply(get_all_prob, axis=1)
 
     # using the sample submission as the prototype, iterate through and fill with actual predictions
     df_output.set_index('ID', inplace=True)
@@ -57,7 +54,8 @@ def build_submission(testdf, y_pred, dataloc):
         hem_type = row['ID'].split('_')[2]
         submission.at[idx, 'Label'] = df_output.at[img_id, hem_type]
 
-    submission_filename = os.path.join(dataloc, str(datetime.datetime.now())+'.csv')
+    datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
+    submission_filename = '/untracked_files/submission_{}.csv'.format(datestamp)
     submission.to_csv(submission_filename, index=False)
     return submission_filename
 
@@ -124,5 +122,5 @@ def main(dataloc, path_to_weights, model='vgg', batch_size=16):
 if __name__ == '__main__':
     main(
         dataloc = '/mnt/win_f/rsna_data',
-        path_to_weights = 'model_weights_6_outputs_iteration_CRASH_DUMP=0_2019-10-01 19:52:34.598103.h5'
+        path_to_weights = 'model_weights_6_outputs_iteration=0_2019-10-04 05:38:23.464537.h5'
     )
