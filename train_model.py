@@ -21,6 +21,7 @@ from keras.optimizers import RMSprop
 from keras import backend as K
 from keras.optimizers import SGD
 from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint, Callback
 
 from keras_preprocessing.image import ImageDataGenerator
 
@@ -51,6 +52,8 @@ class rsna_model(object):
         self.img_size = img_size
         self.epochs = epochs
         self.rgb = rgb
+
+        self.datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
 
     def make_y_image(self,generator,model,filename):
         generator.__reset__()
@@ -105,6 +108,27 @@ class rsna_model(object):
         if self.weights_path is not None:
             self.model.load_weights(self.weights_path)
 
+        # setup callbacks
+        earlystop = EarlyStopping(patience=10)
+
+        learning_rate_reduction = ReduceLROnPlateau(monitor='val_accuracy', 
+                                                    patience=2, 
+                                                    verbose=1, 
+                                                    factor=0.5, 
+                                                    min_lr=0.00001)
+
+        checkpoint_name = "model_weights_6_outputs_iteration_{}.h5".format(datestamp)
+        checkpoint = ModelCheckpoint(
+            checkpoint_name, 
+            monitor='val_loss', 
+            verbose=0, 
+            save_best_only=True, 
+            save_weights_only=False,
+            mode='auto'
+        )
+
+        self.callbacks = [earlystop, learning_rate_reduction, checkpoint]
+
     def train(self):
         try:
             self.model.fit_generator(
@@ -112,17 +136,18 @@ class rsna_model(object):
                 steps_per_epoch=len(self.train_df)//self.batch_size,
                 validation_data=self.validate_generator,
                 validation_steps=len(self.validate_df)//self.batch_size,
-                epochs=self.epochs
+                epochs=self.epochs,
+                callbacks = self.callbacks,
+                verbose = 1
             )
             
-            datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
-            self.model.save_weights("../untracked_files/model_weights_6_outputs_iteration={}.h5".format(datestamp))
-            y_image_filename = '../untracked_files/y_plot_validate_{}.png'.format(datestamp)
-            self.make_y_image(self.validate_generator,model,y_image_filename)
+            self.model.save_weights("../untracked_files/model_weights_6_outputs_iteration={}.h5".format(self.datestamp))
+            y_image_filename = '../untracked_files/y_plot_validate_{}.png'.format(self.datestamp)
+            self.make_y_image(self.validate_generator,self.model,y_image_filename)
         except Exception as e:
             print(e)
             datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
-            self.model.save_weights("../untracked_files/model_weights_6_outputs_iteration_CRASH_DUMP={}.h5".format(datestamp))
+            self.model.save_weights("../untracked_files/model_weights_6_outputs_iteration_CRASH_DUMP={}.h5".format(self.datestamp))
 
 if __name__ == '__main__':
     model = rsna_model(dataloc = '/mnt/win_f/rsna_data',
