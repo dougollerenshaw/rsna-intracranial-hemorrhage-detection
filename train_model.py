@@ -94,6 +94,7 @@ def main(dataloc, weights_path=None):
                 validation_steps=len(validate_df)//batch_size,
                 epochs=1
             )
+            
             datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
             model.save_weights("../untracked_files/model_weights_6_outputs_iteration={}_{}.h5".format(i,datestamp))
             y_image_filename = '../untracked_files/y_plot_validate_{}.png'.format(datestamp)
@@ -106,5 +107,5 @@ def main(dataloc, weights_path=None):
 if __name__ == '__main__':
     main(
         dataloc = '/mnt/win_f/rsna_data',
-        weights = "../untracked_files/model_weights_6_outputs_iteration=0_2019-10-04 05:38:23.464537.h5"
+        weights_path = "../untracked_files/model_weights_6_outputs_iteration=0_2019-10-04 05:38:23.464537.H5"
     )
