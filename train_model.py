@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from skimage import exposure, io, transform
 from skimage.transform import rotate, warp
 from skimage.transform import SimilarityTransform
-import shutil
 import urllib
 import warnings
 import datetime
@@ -131,7 +130,7 @@ class rsna_model(object):
 
     def train(self):
         
-        self.model.fit_generator(
+        self.history = self.model.fit_generator(
             generator=self.train_generator,
             steps_per_epoch=len(self.train_df)//self.batch_size,
             validation_data=self.validate_generator,
