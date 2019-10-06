@@ -71,6 +71,10 @@ class rsna_model(object):
         # load training df
         self.tdf = utils.load_training_data(self.dataloc)
 
+        # drop missing image
+        drop_idx = [i for i,row in df['filename'].iteritems() if fnmatch.fnmatch(row,'*ID_33fcf4d99*')]
+        tdf = tdf.drop(drop_idx)
+        
         # set up training fraction
         ## train and validate dataframes
         shuff = self.tdf.sample(frac=self.training_fraction)

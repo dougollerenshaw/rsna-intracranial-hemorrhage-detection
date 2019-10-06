@@ -78,10 +78,6 @@ class Dicom_Image_Generator:
         for i in range(self.batch_size):
             filepath = self.df.iloc[self.position]['filename']
 
-            # there is a missing file, skip this
-            if fnmatch.fnmatch(filepath, '*ID_33fcf4d99*'):
-                continue
-
             image = self.open_image(filepath)
 
             # occasionally image sizes in this dataset vary
