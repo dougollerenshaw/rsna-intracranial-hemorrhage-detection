@@ -10,6 +10,7 @@ from skimage.transform import SimilarityTransform
 import urllib
 import warnings
 import datetime
+import fnmatch
 
 import keras
 from keras import metrics
@@ -72,8 +73,8 @@ class rsna_model(object):
         self.tdf = utils.load_training_data(self.dataloc)
 
         # drop missing image
-        drop_idx = [i for i,row in df['filename'].iteritems() if fnmatch.fnmatch(row,'*ID_33fcf4d99*')]
-        tdf = tdf.drop(drop_idx)
+        drop_idx = [i for i,row in self.tdf['filename'].iteritems() if fnmatch.fnmatch(row,'*ID_33fcf4d99*')]
+        self.tdf = self.tdf.drop(drop_idx)
         
         # set up training fraction
         ## train and validate dataframes

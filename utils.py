@@ -32,7 +32,15 @@ import tensorflow as tf
 class Dicom_Image_Generator:
     '''adapted from https://www.kaggle.com/kwisatzhaderach/dicom-generator'''
 
-    def __init__(self, df, ycols, subset='train', batch_size=12, desired_size=512, random_transform=True, rgb=False):
+    def __init__(self, 
+                    df, 
+                    ycols, 
+                    subset='train', 
+                    batch_size=12, 
+                    desired_size=512, 
+                    random_transform=True, 
+                    rgb=False,
+                    old_equalize=False):
         self.df = df
         self.length = len(df)
         self.subset = subset
@@ -42,14 +50,50 @@ class Dicom_Image_Generator:
         self.ycols = ycols
         self.random_transform = random_transform
         self.rgb = rgb
+        self.old_equalize = old_equalize
 
     def __iter__(self):
         return self
 
-    def open_image(self, filename):
+    def window_image(self, img, data):
+
+        dicom_fields = [data[('0028','1050')].value, #window center
+                    data[('0028','1051')].value, #window width
+                    data[('0028','1052')].value, #intercept
+                    data[('0028','1053')].value] #slope
+                    
+        center,width,intercept,slope = [self.get_field_as_int(x) for x in dicom_fields]
+
+        img = (img*slope + intercept)
+        img_min = center - width//2
+        img_max = center + width//2
+        img[img<img_min] = img_min
+        img[img>img_max] = img_max
+        img = img - img_min
+        img = img / img.max() 
+        return img
+
+    def get_field_as_int(self, x):
+        #get x[0] as in int is x is a 'pydicom.multival.MultiValue', otherwise get int(x)
+        if type(x) == pydicom.multival.MultiValue:
+            return int(x[0])
+        else:
+            return int(x)
+
+    def load_scale_image(self, filename):
+
         ds = pydicom.dcmread(filename)
         im = ds.pixel_array
-        return im/im.max()
+
+        if self.old_equalize:
+            # https://scikit-image.org/docs/dev/api/skimage.exposure.html#skimage.exposure.equalize_hist
+            # http://www.janeriksolem.net/histogram-equalization-with-python-and.html
+            im = im/im.max()            
+            im = exposure.equalize_hist(im)
+        else:
+            im = self.window_image(im, ds)
+            im = exposure.equalize_hist(im)
+        return im
 
     def apply_random_transform(self, input_image):
         rotation = np.random.uniform(low=-10, high=10)
@@ -78,7 +122,7 @@ class Dicom_Image_Generator:
         for i in range(self.batch_size):
             filepath = self.df.iloc[self.position]['filename']
 
-            image = self.open_image(filepath)
+            image = self.load_scale_image(filepath)
 
             # occasionally image sizes in this dataset vary
             if (image.shape[0] != self.desired_size):
@@ -89,13 +133,6 @@ class Dicom_Image_Generator:
                 image = self.apply_random_transform(image)
                 lr = np.random.choice([-1, 1])
                 image = image[:, ::lr]  # flip image l/r
-
-            try:
-                image = exposure.equalize_hist(image)
-            except:
-                image = np.zeros_like(image)
-                warnings.warn(
-                    'image {} could not be equalized, returning as array of zeros'.format(filepath))
 
             if self.rgb:
                 X[i] = np.expand_dims(np.repeat(
