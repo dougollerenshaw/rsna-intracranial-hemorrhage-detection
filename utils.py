@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from tqdm import tqdm as progress
 from skimage import exposure, io, transform
 from skimage.transform import rotate, warp
 from skimage.transform import SimilarityTransform
@@ -29,18 +28,19 @@ from keras_preprocessing.image import ImageDataGenerator
 import tensorflow as tf
 
 
-class Dicom_Image_Generator:
+class Dicom_Image_Generator():
     '''adapted from https://www.kaggle.com/kwisatzhaderach/dicom-generator'''
 
     def __init__(self, 
                     df, 
                     ycols, 
+                    rgb,
+                    old_equalize = True,
                     subset='train', 
                     batch_size=12, 
                     desired_size=512, 
                     random_transform=True, 
-                    rgb=False,
-                    old_equalize=False):
+                    ):
         self.df = df
         self.length = len(df)
         self.subset = subset
@@ -65,11 +65,9 @@ class Dicom_Image_Generator:
         center,width,intercept,slope = [self.get_field_as_int(x) for x in dicom_fields]
 
         img = (img*slope + intercept)
-        img_min = center - width//2
         img_max = center + width//2
-        img[img<img_min] = img_min
         img[img>img_max] = img_max
-        img = img - img_min
+        img = img - img.min()
         img = img / img.max() 
         return img
 
@@ -88,7 +86,7 @@ class Dicom_Image_Generator:
         if self.old_equalize:
             # https://scikit-image.org/docs/dev/api/skimage.exposure.html#skimage.exposure.equalize_hist
             # http://www.janeriksolem.net/histogram-equalization-with-python-and.html
-            im = im/im.max()            
+            im = im / im.max()            
             im = exposure.equalize_hist(im)
         else:
             im = self.window_image(im, ds)

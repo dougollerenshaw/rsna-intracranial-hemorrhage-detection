@@ -41,7 +41,8 @@ class rsna_model(object):
                 batch_size = 16,
                 img_size = 256,
                 epochs = 1,
-                rgb = False
+                rgb = False,
+                old_equalize = True
                 ):
 
         self.dataloc = dataloc
@@ -52,6 +53,7 @@ class rsna_model(object):
         self.img_size = img_size
         self.epochs = epochs
         self.rgb = rgb
+        self.old_equalize = old_equalize
 
         self.datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
 
@@ -87,22 +89,22 @@ class rsna_model(object):
         self.categories = utils.define_categories(include_any=True)
         
         self.train_generator = utils.Dicom_Image_Generator(
-            self.train_df.reset_index(),
-            ycols=self.categories,
-            desired_size=self.img_size,
-            batch_size=self.batch_size,
-            random_transform=False,
-            rgb=self.rgb
-        )
+                                        self.train_df.reset_index(),
+                                        ycols=self.categories,
+                                        desired_size=self.img_size,
+                                        batch_size=self.batch_size,
+                                        random_transform=False,
+                                        rgb=self.rgb,
+                                        old_equalize = self.old_equalize)
 
         self.validate_generator = utils.Dicom_Image_Generator(
-            self.validate_df.reset_index(),
-            ycols=self.categories,
-            desired_size=self.img_size,
-            batch_size=self.batch_size,
-            random_transform=False,
-            rgb=self.rgb
-        )
+                                        self.validate_df.reset_index(),
+                                        ycols=self.categories,
+                                        desired_size=self.img_size,
+                                        batch_size=self.batch_size,
+                                        random_transform=False,
+                                        rgb=self.rgb,
+                                        old_equalize = self.old_equalize)
 
         # load model
         self.model = models(self.model_name, 
@@ -115,7 +117,8 @@ class rsna_model(object):
         # setup callbacks
         earlystop = EarlyStopping(patience=10)
 
-        learning_rate_reduction = ReduceLROnPlateau(monitor='val_accuracy', 
+        learning_rate_reduction = ReduceLROnPlateau(
+                                                    monitor='val_accuracy', 
                                                     patience=2, 
                                                     verbose=1, 
                                                     factor=0.5, 
@@ -123,27 +126,25 @@ class rsna_model(object):
 
         checkpoint_name = "model_weights_6_outputs_iteration_{}.h5".format(self.datestamp)
         checkpoint = ModelCheckpoint(
-            checkpoint_name, 
-            monitor='val_loss', 
-            verbose=0, 
-            save_best_only=True, 
-            save_weights_only=False,
-            mode='auto'
-        )
+                                    checkpoint_name, 
+                                    monitor='val_loss', 
+                                    verbose=0, 
+                                    save_best_only=True, 
+                                    save_weights_only=False,
+                                    mode='auto')
 
         self.callbacks = [earlystop, learning_rate_reduction, checkpoint]
 
     def train(self):
         
         self.history = self.model.fit_generator(
-            generator=self.train_generator,
-            steps_per_epoch=len(self.train_df)//self.batch_size,
-            validation_data=self.validate_generator,
-            validation_steps=len(self.validate_df)//self.batch_size,
-            epochs=self.epochs,
-            callbacks = self.callbacks,
-            verbose = 1
-        )
+                        generator=self.train_generator,
+                        steps_per_epoch=len(self.train_df)//self.batch_size,
+                        validation_data=self.validate_generator,
+                        validation_steps=len(self.validate_df)//self.batch_size,
+                        epochs=self.epochs,
+                        callbacks = self.callbacks,
+                        verbose = 1)
 
     def save(self):
             
