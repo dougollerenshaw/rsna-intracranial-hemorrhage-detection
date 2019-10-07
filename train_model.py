@@ -118,13 +118,13 @@ class rsna_model(object):
         earlystop = EarlyStopping(patience=10)
 
         learning_rate_reduction = ReduceLROnPlateau(
-                                                    monitor='val_accuracy', 
+                                                    monitor='categorical_accuracy', 
                                                     patience=2, 
                                                     verbose=1, 
                                                     factor=0.5, 
                                                     min_lr=0.00001)
 
-        checkpoint_name = "model_weights_6_outputs_iteration_{}.h5".format(self.datestamp)
+        checkpoint_name = "model_weights_outputs_iteration_{}.h5".format(self.datestamp)
         checkpoint = ModelCheckpoint(
                                     checkpoint_name, 
                                     monitor='val_loss', 
@@ -133,7 +133,7 @@ class rsna_model(object):
                                     save_weights_only=False,
                                     mode='auto')
 
-        self.callbacks = [earlystop, learning_rate_reduction, checkpoint]
+        self.callbacks = [earlystop, checkpoint]
 
     def train(self):
         

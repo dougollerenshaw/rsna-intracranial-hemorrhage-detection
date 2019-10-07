@@ -43,7 +43,7 @@ def vgg_convnet(input_image_size, number_of_output_categories):
     model.compile(
         loss='binary_crossentropy',
         optimizer=Adam(),
-        metrics=['categorical_accuracy','accuracy']
+        metrics=['accuracy']
     )
 
     return model
@@ -70,7 +70,9 @@ def inception_imagenet(input_image_size, number_of_output_categories):
     model.compile(
         loss='binary_crossentropy',
         optimizer=Adam(),
-        metrics=['categorical_accuracy','accuracy']
+        metrics=['accuracy']
     )
+    # see: https://stackoverflow.com/questions/43544358/categorical-crossentropy-need-to-use-categorical-accuracy-or-accuracy-as-the-met
+    # for explanation of how keras automatically chooses accuracy type
 
     return model

@@ -1,4 +1,4 @@
-import click
+#import click
 import utils
 from models import models
 import warnings
@@ -6,7 +6,6 @@ import datetime
 import os
 import numpy as np
 import pandas as pd
-from tqdm import tqdm as progress
 
 
 def create_test_generator(testdf, categories, batch_size):
@@ -36,7 +35,7 @@ def build_submission(testdf, y_pred, dataloc):
         warnings.warn(
             'y_pred is {} entries too short. Filling with zeros'.format(mismatch))
         for _ in range(mismatch):
-            y_pred = np.vstack((y_pred, np.zeros_like(categories))
+            y_pred = np.vstack((y_pred, np.zeros_like(categories)))
 
     # populate columns of df_output with predictions
     for ii, cat in enumerate(categories):
@@ -49,7 +48,7 @@ def build_submission(testdf, y_pred, dataloc):
         dataloc, 'stage_1_sample_submission.csv'))
     submission = sample_submission.copy()
 
-    for idx, row in progress(submission.iterrows()):
+    for idx, row in submission.iterrows():
         img_id = 'ID_'+row['ID'].split('_')[1]
         hem_type = row['ID'].split('_')[2]
         submission.at[idx, 'Label'] = df_output.at[img_id, hem_type]
