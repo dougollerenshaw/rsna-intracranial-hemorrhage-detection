@@ -82,7 +82,7 @@ class rsna_model(object):
         ## train and validate dataframes
         shuff = self.tdf.sample(frac=self.training_fraction)
         self.train_df = shuff.iloc[:int(0.90*len(shuff))]
-        self.validate_df = shuff.iloc[int(0.10*len(shuff)):]
+        self.validate_df = shuff.iloc[int(0.90*len(shuff)):]
         len(shuff),len(self.train_df),len(self.validate_df)
 
         # set up generators

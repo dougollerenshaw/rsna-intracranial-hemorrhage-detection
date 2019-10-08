@@ -16,7 +16,8 @@ def create_test_generator(testdf, categories, batch_size):
         ycols=categories,
         desired_size=512,
         batch_size=batch_size,
-        subset='test'
+        subset='test',
+        random_transform=False
     )
     return test_generator
 
@@ -107,6 +108,7 @@ def main(dataloc, path_to_weights, model='vgg', batch_size=16):
     
     test_generator = create_test_generator(test_df, categories, batch_size)
 
+    test_generator.__reset__() # make sure the generator is starting at index 0!!!
     # predict
     y_pred = model.predict_generator(
         test_generator,
