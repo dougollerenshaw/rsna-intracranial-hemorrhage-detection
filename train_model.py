@@ -127,10 +127,10 @@ class rsna_model(object):
         checkpoint_name = "model_weights_outputs_iteration_{}.h5".format(self.datestamp)
         checkpoint = ModelCheckpoint(
                                     checkpoint_name, 
-                                    monitor='val_loss', 
+                                    monitor='val_acc', 
                                     verbose=0, 
                                     save_best_only=True, 
-                                    save_weights_only=False,
+                                    save_weights_only=True,
                                     mode='auto')
 
         self.callbacks = [earlystop, checkpoint]

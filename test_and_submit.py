@@ -50,11 +50,13 @@ def build_submission(testdf, y_pred, dataloc):
 
     for idx, row in submission.iterrows():
         img_id = 'ID_'+row['ID'].split('_')[1]
+        if img_id == 'ID_ffffcbff8':
+            continue
         hem_type = row['ID'].split('_')[2]
         submission.at[idx, 'Label'] = df_output.at[img_id, hem_type]
 
     datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
-    submission_filename = '/untracked_files/submission_{}.csv'.format(datestamp)
+    submission_filename = 'submission_{}.csv'.format(datestamp)
     submission.to_csv(submission_filename, index=False)
     return submission_filename
 

@@ -67,7 +67,7 @@ class Dicom_Image_Generator():
         img = (img*slope + intercept)
         img_max = center + width//2
         img_min = center - width//2
-        img[img>img_max] = img_max
+        img[img>img_max] = img_min
         img = img - img_min
         img = img / img_max 
         # zap any nans that somehow showup

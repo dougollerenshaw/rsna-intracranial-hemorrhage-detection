@@ -1,8 +1,10 @@
 import keras
+import tensorflow as tf
 from keras import metrics
-from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D
-from keras.layers import Activation, Dropout, Flatten, Dense
+from keras.models import Sequential, Model
+from keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D
+from keras.layers import Activation, Dropout, Flatten, Dense, Input
+from keras.layers.convolutional import Conv2D, MaxPooling2D, SeparableConv2D
 from keras.optimizers import RMSprop
 from keras import backend as K
 from keras.optimizers import SGD
@@ -13,6 +15,7 @@ from keras.applications.inception_resnet_v2 import InceptionResNetV2
 def models(model_name, input_image_size, number_of_output_categories):
     model_translator = {
         'vgg': vgg_convnet(input_image_size, number_of_output_categories),
+        'inception_custom': inception_custom(input_image_size, number_of_output_categories),
         'inception': inception_imagenet(input_image_size, number_of_output_categories)
     }
     return model_translator[model_name]
@@ -39,6 +42,54 @@ def vgg_convnet(input_image_size, number_of_output_categories):
     model.add(Dropout(0.5))
     # replace 'softmax' with 'sigmoid' to allow probabilities not to sum to 1
     model.add(Dense(number_of_output_categories, activation='sigmoid'))
+
+    model.compile(
+        loss='binary_crossentropy',
+        optimizer=Adam(),
+        metrics=['accuracy']
+    )
+
+    return model
+
+def inception_custom(input_image_size, number_of_output_categories):
+    # from https://maelfabien.github.io/deeplearning/inception/#in-keras
+    # see also https://medium.com/@mannasiladittya/building-inception-resnet-v2-in-keras-from-scratch-a3546c4d93f0
+
+    input_img = Input(shape=(input_image_size, input_image_size, 1))
+
+    ### 1st layer
+    layer_1 = Conv2D(10, (1,1), padding='same', activation='relu')(input_img)
+    layer_1 = Conv2D(10, (3,3), padding='same', activation='relu')(layer_1)
+
+    layer_2 = Conv2D(10, (1,1), padding='same', activation='relu')(input_img)
+    layer_2 = Conv2D(10, (5,5), padding='same', activation='relu')(layer_2)
+
+    layer_3 = MaxPooling2D((3,3), strides=(1,1), padding='same')(input_img)
+    layer_3 = Conv2D(10, (1,1), padding='same', activation='relu')(layer_3)
+
+    mid1 = tf.keras.layers.concatenate([layer_1, layer_2, layer_3], axis = 3)
+    flat_1 = Flatten()(mid1)
+
+    ### 2nd layer
+    layer2_1 = Conv2D(10, (1,1), padding='same', activation='relu')(flat_1)
+    layer2_1 = Conv2D(10, (3,3), padding='same', activation='relu')(layer2_1)
+
+    layer2_2 = Conv2D(10, (1,1), padding='same', activation='relu')(input_img)
+    layer2_2 = Conv2D(10, (5,5), padding='same', activation='relu')(layer2_2)
+
+    layer2_3 = MaxPooling2D((3,3), strides=(1,1), padding='same')(input_img)
+    layer2_3 = Conv2D(10, (1,1), padding='same', activation='relu')(layer2_3)
+
+    mid2 = tf.keras.layers.concatenate([layer2_1, layer2_2, layer2_3], axis = 3)
+    flat_2 = Flatten()(mid2)
+
+    ### dense layers
+    dense_1 = Dense(1200, activation='relu')(flat_2)
+    dense_2 = Dense(600, activation='relu')(dense_1)
+    dense_3 = Dense(150, activation='relu')(dense_2)
+    output = Dense(number_of_output_categories, activation='sigmoid')(dense_3)
+
+    model = Model([input_img], output)
 
     model.compile(
         loss='binary_crossentropy',
