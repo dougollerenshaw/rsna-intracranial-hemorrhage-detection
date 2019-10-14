@@ -14,11 +14,11 @@ from keras.applications.inception_resnet_v2 import InceptionResNetV2
 
 def models(model_name, input_image_size, number_of_output_categories):
     model_translator = {
-        'vgg': vgg_convnet(input_image_size, number_of_output_categories),
-        'inception_custom': inception_custom(input_image_size, number_of_output_categories),
-        'inception': inception_imagenet(input_image_size, number_of_output_categories)
+        'vgg': vgg_convnet,
+        'inception_custom': inception_custom,
+        'inception': inception_imagenet,
     }
-    return model_translator[model_name]
+    return model_translator[model_name](input_image_size, number_of_output_categories)
 
 
 def vgg_convnet(input_image_size, number_of_output_categories):
