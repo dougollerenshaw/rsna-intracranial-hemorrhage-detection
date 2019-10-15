@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 
-def create_test_generator(testdf, categories, batch_size):
+def create_test_generator(testdf, categories, batch_size, rgb=False):
     categories = utils.define_categories(include_any=True)
 
     test_generator = utils.Dicom_Image_Generator(
@@ -17,7 +17,8 @@ def create_test_generator(testdf, categories, batch_size):
         desired_size=512,
         batch_size=batch_size,
         subset='test',
-        random_transform=False
+        random_transform=False,
+        rgb=rgb
     )
     return test_generator
 
@@ -40,7 +41,7 @@ def build_submission(testdf, y_pred, dataloc):
 
     # populate columns of df_output with predictions
     for ii, cat in enumerate(categories):
-        df_output[cat] = y_pred[:, ii]
+        df_output[cat] = y_pred[:len(df_output), ii]
 
 
     # using the sample submission as the prototype, iterate through and fill with actual predictions
@@ -57,7 +58,7 @@ def build_submission(testdf, y_pred, dataloc):
         submission.at[idx, 'Label'] = df_output.at[img_id, hem_type]
 
     datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
-    submission_filename = 'submission_{}.csv'.format(datestamp)
+    submission_filename = os.path.join(dataloc,'submission_{}.csv'.format(datestamp))
     submission.to_csv(submission_filename, index=False)
     return submission_filename
 
@@ -91,7 +92,7 @@ def upload_submission(path_to_submission, message='none'):
 # @click.option('--weights_path', prompt='path to pretrained weights', help='location of weights h5 file')
 # @click.option('--model', default='vgg', help='Name of model (must match weights)')
 # @click.option('--batch_size', default=16, help='batch size for training/testing')
-def main(dataloc, path_to_weights, model='vgg', batch_size=16):
+def main(dataloc, path_to_weights, model='vgg', batch_size=8, rgb=False):
     
     categories = utils.define_categories(include_any=True)
     
@@ -99,31 +100,36 @@ def main(dataloc, path_to_weights, model='vgg', batch_size=16):
     test_df = utils.load_test_data(dataloc)
 
     # load model
-    model = models('vgg', input_image_size=512, number_of_output_categories=len(categories))
+    model = models(model, input_image_size=512, number_of_output_categories=len(categories))
 
     # load weights
     model.load_weights(path_to_weights)
 
     # instantiate generator
     
-    test_generator = create_test_generator(test_df, categories, batch_size)
+    test_generator = create_test_generator(test_df, categories, batch_size, rgb=rgb)
 
     test_generator.__reset__() # make sure the generator is starting at index 0!!!
     # predict
     y_pred = model.predict_generator(
         test_generator,
-        steps=len(test_df)//batch_size,
+        steps=len(test_df)//batch_size+1,
         verbose=1
     )
 
     # build submission
     submission_filename = build_submission(test_df, y_pred, dataloc)
 
+    print('uploading submission...')
+    
     # submit response
     upload_submission(submission_filename)
 
 if __name__ == '__main__':
+    dataloc = '/ssd1'
     main(
-        dataloc = '/mnt/win_f/rsna_data',
-        path_to_weights = 'model_weights_6_outputs_iteration=0_2019-10-04 05:38:23.464537.h5'
+        dataloc = dataloc,
+        path_to_weights = os.path.join(dataloc,'model_weights_vgg19_2019-10-14T07_33_22.602406.h5'),
+        model = 'vgg19',
+        rgb=True
     )
