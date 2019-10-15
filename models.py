@@ -10,15 +10,45 @@ from keras import backend as K
 from keras.optimizers import SGD
 from keras.optimizers import Adam
 from keras.applications.inception_resnet_v2 import InceptionResNetV2
+from keras.applications.vgg19 import VGG19
 
 
 def models(model_name, input_image_size, number_of_output_categories):
     model_translator = {
         'vgg': vgg_convnet,
+        'vgg19':vgg19,
         'inception_custom': inception_custom,
         'inception': inception_imagenet,
     }
     return model_translator[model_name](input_image_size, number_of_output_categories)
+
+def vgg19(input_image_size, number_of_output_categories):
+    model = VGG19(
+        include_top=False, 
+        weights='imagenet', 
+        input_shape=(input_image_size,input_image_size,3), 
+    )
+
+
+    #Adding custom Layers 
+    x = model.output
+    x = Flatten()(x)
+    x = Dense(1024, activation="relu")(x)
+    x = Dropout(0.5)(x)
+    x = Dense(1024, activation="relu")(x)
+    predictions = Dense(number_of_output_categories, activation='sigmoid')(x)
+
+    # creating the final model 
+    model = Model(input = model.input, output = predictions)
+
+    # compile the model 
+    model.compile(
+        loss = "binary_crossentropy", 
+        optimizer = SGD(lr=0.0001, momentum=0.9), 
+        metrics=["accuracy"]
+    )
+    
+    return model
 
 
 def vgg_convnet(input_image_size, number_of_output_categories):
