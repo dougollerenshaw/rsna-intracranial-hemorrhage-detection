@@ -9,7 +9,7 @@ import pandas as pd
 
 
 def create_test_generator(testdf, categories, batch_size):
-    categories = utils.define_categories(include_any=True)
+    categories = utils.define_categories(testdf, include_any=False)
 
     test_generator = utils.Dicom_Image_Generator(
         testdf[['filename']+categories],
@@ -27,7 +27,7 @@ def build_submission(testdf, y_pred, dataloc):
     # build output dataframe
     df_output = testdf.copy()
 
-    categories = utils.define_categories(include_any = True)
+    categories = utils.define_categories(df_output, include_any = True)
 
     if len(y_pred) < len(df_output):
         mismatch = len(df_output) - len(y_pred)
@@ -93,10 +93,10 @@ def upload_submission(path_to_submission, message='none'):
 # @click.option('--batch_size', default=16, help='batch size for training/testing')
 def main(dataloc, path_to_weights, model='vgg', batch_size=16):
     
-    categories = utils.define_categories(include_any=True)
-    
     # load test data
     test_df = utils.load_test_data(dataloc)
+
+    categories = utils.define_categories(test_df, include_any=False)
 
     # load model
     model = models('vgg', input_image_size=512, number_of_output_categories=len(categories))

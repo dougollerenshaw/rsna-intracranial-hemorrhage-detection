@@ -52,26 +52,32 @@ class Dicom_Image_Generator():
         self.rgb = rgb
         self.old_equalize = old_equalize
 
+        # get metadata from the first image so we don't have to do this again
+        self.get_window_params(pydicom.dcmread(self.df.iloc[0]['filename']))
+
     def __iter__(self):
         return self
 
-    def window_image(self, img, data):
+    def get_window_params(self, data):
 
         dicom_fields = [data[('0028','1050')].value, #window center
                     data[('0028','1051')].value, #window width
                     data[('0028','1052')].value, #intercept
                     data[('0028','1053')].value] #slope
                     
-        center,width,intercept,slope = [self.get_field_as_int(x) for x in dicom_fields]
+        self.center,self.width,self.intercept,self.slope = [self.get_field_as_int(x) for x in dicom_fields]
 
-        img = (img*slope + intercept)
-        img_max = center + width//2
-        img_min = center - width//2
-        img[img>img_max] = img_min
+    def window_image(self, img):
+
+        img = (img*self.slope + self.intercept)
+        img_max = (self.center + self.width//2) * 2 # scale max so get bone information needed for subdural hems
+        img_min = self.center - self.width//2
+        img[img>img_max] = img_max
+        img[img<img_min] = img_min
         img = img - img_min
         img = img / img_max 
         # zap any nans that somehow showup
-        img[np.where(np.isnan(img), True, False)] = img_min
+        img[np.isnan(img)] = img_min
         return img
 
     def get_field_as_int(self, x):
@@ -81,9 +87,12 @@ class Dicom_Image_Generator():
         else:
             return int(x)
 
-    def load_scale_image(self, filename):
+    def load_image(self, filename):
 
-        ds = pydicom.dcmread(filename)
+        return pydicom.dcmread(filename)
+
+    def scale_image(self, ds):
+
         im = ds.pixel_array
 
         if self.old_equalize:
@@ -92,8 +101,8 @@ class Dicom_Image_Generator():
             im = im / im.max()            
             im = exposure.equalize_hist(im)
         else:
-            im = self.window_image(im, ds)
-            im = exposure.equalize_hist(im)
+            im = self.window_image(im)
+            #im = exposure.equalize_hist(im)
         return im
 
     def apply_random_transform(self, input_image):
@@ -123,7 +132,12 @@ class Dicom_Image_Generator():
         for i in range(self.batch_size):
             filepath = self.df.iloc[self.position]['filename']
 
-            image = self.load_scale_image(filepath)
+            data = self.load_image(filepath)
+
+            try:
+                image = self.scale_image(data)
+            except:
+                print('error image ' + str(filepath))
 
             # occasionally image sizes in this dataset vary
             if (image.shape[0] != self.desired_size):
@@ -137,10 +151,10 @@ class Dicom_Image_Generator():
 
             if self.rgb:
                 X[i] = np.expand_dims(np.repeat(
-                    image[..., np.newaxis], 3, -1), axis=0).astype(float)
+                    image[..., np.newaxis], 3, -1), axis=0).astype('float32')
             else:
                 X[i] = np.expand_dims(np.expand_dims(
-                    image, axis=0), axis=3).astype(float)
+                    image, axis=0), axis=3).astype('float32')
 
             y.append(self.df.iloc[self.position][self.ycols])
             self.position += 1
@@ -152,14 +166,9 @@ class Dicom_Image_Generator():
             return (X, np.asarray(y).astype(int))
 
 
-def define_categories(include_any=False):
-    categories = [
-        'epidural',
-        'intraparenchymal',
-        'intraventricular',
-        'subarachnoid',
-        'subdural',
-    ]
+def define_categories(df, include_any=False):
+
+    categories = [c for c in df.columns if c != 'filename']
     if include_any:
         categories = categories + ['any']
     return categories
@@ -175,6 +184,35 @@ def make_y_image(generator, model, filename):
     ax[0].set_title('y_actual')
     ax[1].set_title('y_pred')
     fig.savefig(filename)
+
+
+def split_df_by_categories(dataloc):
+
+    traindf = pd.read_csv(os.path.join(dataloc,'stage_1_train.csv'))
+
+    traindf['type'] = traindf['ID'].map(lambda x:x.split('_')[2])
+
+    traindf['filename'] = traindf['ID'].map(lambda x:os.path.join(dataloc,'stage_1_train_images',('ID_' + x.split('_')[1] + '.dcm')))
+
+    traindf['ID'] = traindf['ID'].map(lambda x:'ID_'+x.split('_')[1])
+
+    ## pivot
+
+    tdf_all = traindf[['Label', 'ID', 'type','filename']].drop_duplicates().pivot(
+        index='filename', columns='type', values='Label').reset_index()
+    tdf_all.index.rename('index',inplace=True)
+
+    categories = [c for c in tdf_all.columns if c != 'filename']
+
+    tdf_by_cat = {}
+    for c, category in enumerate(categories):
+        cat_pos = tdf_all[tdf_all[category]==1][['filename', category]]
+        cat_neg = tdf_all[tdf_all[category]==0][['filename', category]]
+        # dont sample to balance here - this should be done by the generator at each epoch!
+        tdf_by_cat[category] = pd.concat([cat_pos,cat_neg])
+
+    return tdf_by_cat
+
 
 def load_training_data(dataloc):
 
@@ -194,19 +232,21 @@ def load_training_data(dataloc):
     positive_examples = tdf_all.query('any == 1')
     # positive_examples.drop(columns='any',inplace=True)
 
-    categories = [c for c in positive_examples.columns if c != 'filename']
+    categories = [c for c in tdf_all.columns if c != 'filename']
 
     null_examples = tdf_all.query('any == 0')
-    # null_examples.drop(columns='any',inplace=True)
 
-    tdf = pd.concat([positive_examples,null_examples.sample(len(positive_examples),random_state=0)])
+    # balence categories (#pos == #null)
+    #tdf = pd.concat([positive_examples,null_examples.sample(len(positive_examples),random_state=0)])
+    tdf = pd.concat([positive_examples,null_examples])
+    tdf.drop(columns=['any'],inplace=True)
 
     return tdf
 
 def load_test_data(dataloc):
     test_filenames = os.listdir(os.path.join(dataloc,'stage_1_test_images'))
     d = {'filename':test_filenames}
-    categories = define_categories(include_any=True)
+    categories = define_categories(include_any=False)
     d.update({cat:np.zeros(len(test_filenames)) for cat in categories})
     testdf = pd.DataFrame(d)
     testdf['ID'] = testdf['filename'].map(lambda x:'ID_'+x.split("_")[1][:-4])
