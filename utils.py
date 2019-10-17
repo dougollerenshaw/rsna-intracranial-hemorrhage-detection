@@ -98,8 +98,14 @@ class Dicom_Image_Generator():
         if self.old_equalize:
             # https://scikit-image.org/docs/dev/api/skimage.exposure.html#skimage.exposure.equalize_hist
             # http://www.janeriksolem.net/histogram-equalization-with-python-and.html
+
             im = im / im.max()            
-            im = exposure.equalize_hist(im)
+            try:
+                im = exposure.equalize_hist(im)
+            except:
+                im = np.zeros_like(im)
+                warnings.warn(
+                    'image {} could not be equalized, returning as array of zeros'.format(filename))
         else:
             im = self.window_image(im)
             #im = exposure.equalize_hist(im)
