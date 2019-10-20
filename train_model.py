@@ -42,7 +42,8 @@ class rsna_model(object):
                 img_size = 256,
                 epochs = 1,
                 rgb = False,
-                old_equalize = True
+                old_equalize = True,
+                random_transform=False
                 ):
 
         self.dataloc = dataloc
@@ -54,6 +55,7 @@ class rsna_model(object):
         self.epochs = epochs
         self.rgb = rgb
         self.old_equalize = old_equalize
+        self.random_transform = random_transform
 
         self.datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
 
@@ -80,7 +82,7 @@ class rsna_model(object):
         
         # set up training fraction
         ## train and validate dataframes
-        shuff = self.tdf.sample(frac=self.training_fraction)
+        shuff = self.tdf.sample(frac=self.training_fraction, random_state=0)
         self.train_df = shuff.iloc[:int(0.90*len(shuff))]
         self.validate_df = shuff.iloc[int(0.90*len(shuff)):]
         len(shuff),len(self.train_df),len(self.validate_df)
@@ -88,23 +90,21 @@ class rsna_model(object):
         # set up generators
         self.categories = utils.define_categories(include_any=True)
         
-        self.train_generator = utils.Dicom_Image_Generator(
+        self.train_generator = utils.Three_Channel_Generator(
                                         self.train_df.reset_index(),
                                         ycols=self.categories,
                                         desired_size=self.img_size,
                                         batch_size=self.batch_size,
-                                        random_transform=False,
-                                        rgb=self.rgb,
-                                        old_equalize = self.old_equalize)
+                                        random_transform=self.random_transform,
+                                        rgb=True)
 
-        self.validate_generator = utils.Dicom_Image_Generator(
+        self.validate_generator = utils.Three_Channel_Generator(
                                         self.validate_df.reset_index(),
                                         ycols=self.categories,
                                         desired_size=self.img_size,
                                         batch_size=self.batch_size,
                                         random_transform=False,
-                                        rgb=self.rgb,
-                                        old_equalize = self.old_equalize)
+                                        rgb=True)
 
         # load model
         self.model = models(self.model_name, 
@@ -124,7 +124,7 @@ class rsna_model(object):
                                                     factor=0.5, 
                                                     min_lr=0.00001)
 
-        checkpoint_name = "model_weights_outputs_iteration_{}.h5".format(self.datestamp)
+        checkpoint_name = os.path.join(self.dataloc,"model_weights_vgg19_{}.h5".format(self.datestamp))
         checkpoint = ModelCheckpoint(
                                     checkpoint_name, 
                                     monitor='val_acc', 
@@ -148,13 +148,24 @@ class rsna_model(object):
 
     def save(self):
             
-        self.model.save_weights("../untracked_files/model_weights_6_outputs_iteration={}.h5".format(self.datestamp))
-        y_image_filename = '../untracked_files/y_plot_validate_{}.png'.format(self.datestamp)
+        self.model.save_weights(os.path.join(dataloc,"model_weights_vgg19={}.h5".format(self.datestamp)))
+        y_image_filename = os.path.join(dataloc,'y_plot_validate_{}.png'.format(self.datestamp))
         self.make_y_image(self.validate_generator,self.model,y_image_filename)
 
 
 if __name__ == '__main__':
-    model = rsna_model(dataloc = '/mnt/win_f/rsna_data',
-                        weights_path = "../untracked_files/model_weights_6_outputs_iteration=0_2019-10-04 05:38:23.464537.H5")
+    dataloc = '/ssd1'
+    model = rsna_model(
+        dataloc = '/ssd1', 
+        weights_path = os.path.join(dataloc,'model_weights_vgg19_2019-10-19T21_25_04.928800.h5'),
+        model_name = 'vgg19',
+        training_fraction = 0.25,
+            batch_size = 8,
+        img_size = 512,
+        epochs = 20,
+        rgb = True,
+        old_equalize = False,
+        random_transform=True
+    )
     model.build()
     model.train()
