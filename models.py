@@ -19,6 +19,7 @@ def models(model_name, input_image_size, number_of_output_categories):
         'vgg19':vgg19,
         'inception_custom': inception_custom,
         'inception': inception_imagenet,
+        'inception_resnetv2':inception_resnetv2,
     }
     return model_translator[model_name](input_image_size, number_of_output_categories)
 
@@ -157,3 +158,30 @@ def inception_imagenet(input_image_size, number_of_output_categories):
     # for explanation of how keras automatically chooses accuracy type
 
     return model
+
+def inception_resnetv2(input_image_size, number_of_output_categories):
+
+    model = InceptionResNetV2(include_top = False,
+                                weights = "imagenet", 
+                                input_shape = (input_image_size,input_image_size,3))
+
+
+    #Adding custom Layers 
+    x = model.output
+    x = Flatten()(x)
+    x = Dense(1024, activation="relu")(x)
+    x = Dropout(0.5)(x)
+    x = Dense(512, activation="relu")(x)
+    predictions = Dense(number_of_output_categories, activation='sigmoid')(x)
+
+    # creating the final model 
+    model = Model(input = model.input, output = predictions)
+
+    model.compile(
+        loss='binary_crossentropy',
+        optimizer=Adam(),
+        metrics=['accuracy']
+    )
+
+    return model
+
