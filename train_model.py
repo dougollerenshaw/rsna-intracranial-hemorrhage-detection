@@ -35,6 +35,7 @@ class rsna_model(object):
 
     def __init__(self,
                 dataloc = r'D:\rsna-intracranial-hemorrhage-detection', 
+                df = None,
                 weights_path = None,
                 model_name = 'vgg',
                 training_fraction = 0.15,
@@ -43,10 +44,12 @@ class rsna_model(object):
                 epochs = 1,
                 rgb = False,
                 old_equalize = True,
-                random_transform=False
+                class_weights = None,
+                random_transform = False
                 ):
 
         self.dataloc = dataloc
+        self.df = df
         self.weights_path = weights_path
         self.model_name = model_name
         self.training_fraction = training_fraction
@@ -55,7 +58,6 @@ class rsna_model(object):
         self.epochs = epochs
         self.rgb = rgb
         self.old_equalize = old_equalize
-        self.random_transform = random_transform
 
         self.datestamp = str(datetime.datetime.now()).replace(':','_').replace(' ','T')
 
@@ -73,12 +75,17 @@ class rsna_model(object):
 
     def build(self):
 
-        # load training df
-        self.tdf = utils.load_training_data(self.dataloc)
+        if isinstance(self.df, pd.DataFrame):
+            self.tdf = self.df
+        else:
+            # load training df from .csv
+            self.tdf = utils.load_training_data(self.dataloc)
 
         # drop missing image
         drop_idx = [i for i,row in self.tdf['filename'].iteritems() if fnmatch.fnmatch(row,'*ID_33fcf4d99*')]
         self.tdf = self.tdf.drop(drop_idx)
+        drop_idx2 = [i for i,row in self.tdf['filename'].iteritems() if fnmatch.fnmatch(row,'*ID_6431af929*')]
+        self.tdf = self.tdf.drop(drop_idx2)
         
         # set up training fraction
         ## train and validate dataframes
@@ -88,15 +95,16 @@ class rsna_model(object):
         len(shuff),len(self.train_df),len(self.validate_df)
 
         # set up generators
-        self.categories = utils.define_categories(include_any=True)
+        self.categories = utils.define_categories(self.tdf, include_any=False)
         
         self.train_generator = utils.Three_Channel_Generator(
                                         self.train_df.reset_index(),
                                         ycols=self.categories,
                                         desired_size=self.img_size,
                                         batch_size=self.batch_size,
-                                        random_transform=self.random_transform,
-                                        rgb=True)
+                                        random_transform=False,
+                                        rgb=self.rgb,
+                                        old_equalize = self.old_equalize)
 
         self.validate_generator = utils.Three_Channel_Generator(
                                         self.validate_df.reset_index(),
@@ -104,7 +112,8 @@ class rsna_model(object):
                                         desired_size=self.img_size,
                                         batch_size=self.batch_size,
                                         random_transform=False,
-                                        rgb=True)
+                                        rgb=self.rgb,
+                                        old_equalize = self.old_equalize)
 
         # load model
         self.model = models(self.model_name, 
@@ -118,19 +127,20 @@ class rsna_model(object):
         earlystop = EarlyStopping(patience=10)
 
         learning_rate_reduction = ReduceLROnPlateau(
-                                                    monitor='categorical_accuracy', 
-                                                    patience=2, 
+                                                    monitor='val_loss', 
+                                                    patience=1, 
                                                     verbose=1, 
                                                     factor=0.5, 
-                                                    min_lr=0.00001)
+                                                    min_lr=0.00001,
+                                                    mode='min')
 
-        checkpoint_name = os.path.join(self.dataloc,"model_weights_vgg19_{}.h5".format(self.datestamp))
+        checkpoint_name = "model_weights_outputs_iteration_{}.h5".format(self.datestamp)
         checkpoint = ModelCheckpoint(
-                                    checkpoint_name, 
-                                    monitor='val_acc', 
-                                    verbose=0, 
+                                    checkpoint_path, 
+                                    monitor='val_loss', 
+                                    verbose=1, 
                                     save_best_only=True, 
-                                    save_weights_only=True,
+                                    save_weights_only=False,
                                     mode='auto')
 
         self.callbacks = [earlystop, checkpoint]
@@ -144,6 +154,7 @@ class rsna_model(object):
                         validation_steps=len(self.validate_df)//self.batch_size,
                         epochs=self.epochs,
                         callbacks = self.callbacks,
+                        class_weight = self.class_weights,
                         verbose = 1)
 
     def save(self):
