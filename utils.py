@@ -28,6 +28,142 @@ from keras_preprocessing.image import ImageDataGenerator
 import tensorflow as tf
 
 
+class Three_Channel_Generator():
+    '''adapted from https://www.kaggle.com/kwisatzhaderach/dicom-generator'''
+
+    def __init__(self, 
+                    df, 
+                    ycols, 
+                    subset='train', 
+                    batch_size=12, 
+                    desired_size=512, 
+                    random_transform=False,
+                    rgb=True
+                    ):
+        self.df = df
+        self.length = len(df)
+        self.subset = subset
+        self.batch_size = batch_size
+        self.position = 0
+        self.desired_size = desired_size
+        self.ycols = ycols
+        self.random_transform = random_transform
+
+    def __iter__(self):
+        return self
+    
+    def rescale_image(self, image, slope, intercept):
+        return image * slope + intercept
+
+    def apply_window(self, image, center, width):
+        image = image.copy()
+        min_value = center - width // 2
+        max_value = center + width // 2
+        image[image < min_value] = min_value
+        image[image > max_value] = max_value
+        return image
+    
+    def apply_random_transform(self, input_image, random_state=None):
+        if random_state is not None:
+            np.random.seed(random_state)
+        rotation = np.random.uniform(low=-10, high=10)
+        horizontal_translation = np.random.uniform(low=-10, high=10)
+        vertical_translation = np.random.uniform(low=-10, high=10)
+        tform = SimilarityTransform(translation=(
+            horizontal_translation, vertical_translation))
+
+        rotated_image = rotate(input_image, rotation,
+                               cval=np.mean(input_image[:10, :10]))
+        translated_image = warp(rotated_image, tform,
+                                cval=np.mean(input_image[:10, :10]))
+        lr = np.random.choice([-1, 1])
+        return translated_image[:, ::lr] # flip image l/r
+#         return rotated_image # flip image l/r
+
+    def open_scale_image(self, data):
+
+        im = data.pixel_array
+        
+        shape = im.shape[0]
+        image = np.empty((shape,shape,3))
+        
+        dicom_fields = [data[('0028','1050')].value, #window center
+                    data[('0028','1051')].value, #window width
+                    data[('0028','1052')].value, #intercept
+                    data[('0028','1053')].value] #slope
+                    
+        center,width,intercept,slope = [self.get_field_as_int(x) for x in dicom_fields]
+
+        rescaled_image = self.rescale_image(im,slope,intercept)
+        image1 = self.apply_window(rescaled_image, 40, 80) # brain
+        image2 = self.apply_window(rescaled_image, 80, 200) # subdural
+        image3 = exposure.equalize_hist(rescaled_image)
+        
+        
+        image1 = (image1 - 0) / 80
+        image2 = (image2 - (-20)) / 200
+        image3 = (image3 - image3.min()) / (image3.max()-image3.min())
+        
+        if self.random_transform:
+            seed = np.random.randint(2**16)
+            image1 = self.apply_random_transform(image1,random_state=seed)
+            image2 = self.apply_random_transform(image2,random_state=seed)
+            image3 = self.apply_random_transform(image3,random_state=seed)
+        
+        image = np.array([
+            image1, # - image1.mean(),
+            image2, # - image2.mean(),
+            image3, # - image3.mean(),
+        ]).transpose(1,2,0)
+
+        return image
+
+    def get_field_as_int(self, x):
+        #get x[0] as in int is x is a 'pydicom.multival.MultiValue', otherwise get int(x)
+        if type(x) == pydicom.multival.MultiValue:
+            return int(x[0])
+        else:
+            return int(x)
+
+    def load_image(self, filename):
+
+        try:
+            ds = pydicom.dcmread(filename)
+            return self.open_scale_image(ds)
+        except:
+            warnings.warn('failed to load {}, returning zeros'.format(filename))
+            return np.zeros(512,512,3)
+
+    def __reset__(self):
+        self.position = 0
+
+    def __next__(self):
+        X, y = np.empty((self.batch_size, self.desired_size,
+                     self.desired_size, 3)), []
+
+        for i in range(self.batch_size):
+            filepath = self.df.iloc[self.position]['filename']
+
+            image = self.load_image(filepath)
+
+            # occasionally image sizes in this dataset vary
+            if (image.shape[0] != self.desired_size):
+                image = transform.resize(
+                    image, (self.desired_size, self.desired_size))
+
+            X[i,:,:,:] = image
+
+
+            y.append(self.df.iloc[self.position][self.ycols])
+            self.position += 1
+            if (self.position >= self.length):
+                self.position = 0
+        if (self.subset == 'test'):
+            return X
+        else:
+            return (X, np.asarray(y).astype(int))
+
+
 class Dicom_Image_Generator():
     '''adapted from https://www.kaggle.com/kwisatzhaderach/dicom-generator'''
 
@@ -54,6 +190,14 @@ class Dicom_Image_Generator():
 
     def __iter__(self):
         return self
+    
+    def apply_window(image, center, width):
+        image = image.copy()
+        min_value = center - width // 2
+        max_value = center + width // 2
+        image[image < min_value] = min_value
+        image[image > max_value] = max_value
+        return image
 
     def window_image(self, img, data):
 
@@ -83,8 +227,12 @@ class Dicom_Image_Generator():
 
     def load_scale_image(self, filename):
 
-        ds = pydicom.dcmread(filename)
-        im = ds.pixel_array
+        try:
+            ds = pydicom.dcmread(filename)
+            im = ds.pixel_array
+        except:
+            warnings.warn('failed to load {}, returning zeros'.format(filename))
+            return np.zeros(512,512)
 
         if self.old_equalize:
             # https://scikit-image.org/docs/dev/api/skimage.exposure.html#skimage.exposure.equalize_hist
@@ -206,6 +354,8 @@ def load_training_data(dataloc):
     # null_examples.drop(columns='any',inplace=True)
 
     tdf = pd.concat([positive_examples,null_examples.sample(len(positive_examples),random_state=0)])
+#     tdf = pd.concat([positive_examples,null_examples.sample(len(positive_examples))])
+#     tdf = tdf_all
 
     return tdf
 
