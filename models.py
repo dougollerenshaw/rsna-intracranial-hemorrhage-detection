@@ -12,6 +12,8 @@ from keras.optimizers import Adam
 from keras.initializers import Constant, glorot_normal
 from keras.applications.inception_resnet_v2 import InceptionResNetV2
 from keras.applications.vgg19 import VGG19
+from keras.applications.nasnet import NASNetLarge
+
 
 
 def models(model_name, input_image_size, number_of_output_categories):
@@ -22,6 +24,7 @@ def models(model_name, input_image_size, number_of_output_categories):
         'inception_custom': inception_custom,
         'inception': inception_imagenet,
         'inception_resnetv2':inception_resnetv2,
+        'nasnet_large':nasnet_large,
     }
     return model_translator[model_name](input_image_size, number_of_output_categories)
 
@@ -113,7 +116,7 @@ def vgg19(input_image_size, number_of_output_categories):
     # compile the model 
     model.compile(
         loss = "binary_crossentropy", 
-        optimizer = SGD(lr=0.0001, momentum=0.9), 
+        optimizer = SGD(), #SGD(lr=0.0001, momentum=0.9), 
         metrics=["accuracy"]
     )
     
@@ -125,7 +128,7 @@ def vgg_custom(input_image_size, number_of_output_categories):
     model = Sequential()
     # input: 100x100 images with 3 channels -> (100, 100, 3) tensors.
     # this applies 32 convolution filters of size 3x3 each.
-    model.add(Conv2D(32, (3, 3), input_shape=(input_image_size, input_image_size, 1)))
+    model.add(Conv2D(32, (3, 3), input_shape=(input_image_size, input_image_size, 3)))
     model.add(BatchNormalization())
     model.add(Activation("relu"))
     model.add(Conv2D(32, (3, 3), use_bias=False))
@@ -274,3 +277,28 @@ def inception_resnetv2(input_image_size, number_of_output_categories):
 
     return model
 
+def nasnet_large(input_image_size, number_of_output_categories):
+
+
+
+    base_model = NASNetLarge(include_top = False,
+                                weights = "imagenet", 
+                                input_shape = (input_image_size,input_image_size,3))
+
+    base_model.trainable = False
+    model = Sequential()
+    model.add(base_model)
+
+    model.add(Flatten())
+    model.add(Dense(1024, activation='relu'))
+    model.add(Dropout(0.25))
+    model.add(Dense(1024, activation='relu'))
+    model.add(Dense(number_of_output_categories, activation='sigmoid'))
+    
+    model.compile(
+        loss='binary_crossentropy',
+        optimizer=Adam(),
+        metrics=['accuracy']
+    )
+    
+    return model
