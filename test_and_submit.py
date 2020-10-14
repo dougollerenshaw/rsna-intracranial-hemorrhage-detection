@@ -11,14 +11,14 @@ import pandas as pd
 def create_test_generator(testdf, categories, batch_size):
     categories = utils.define_categories(testdf, include_any=False)
 
-    test_generator = utils.Dicom_Image_Generator(
+    test_generator = utils.Three_Channel_Generator(
         testdf[['filename']+categories],
         ycols=categories,
         desired_size=512,
         batch_size=batch_size,
         subset='test',
         random_transform=False,
-        rgb=rgb
+        rgb=True
     )
     return test_generator
 
@@ -28,7 +28,7 @@ def build_submission(testdf, y_pred, dataloc):
     # build output dataframe
     df_output = testdf.copy()
 
-    categories = utils.define_categories(df_output, include_any = True)
+    categories = utils.define_categories(df_output)
 
     if len(y_pred) < len(df_output):
         mismatch = len(df_output) - len(y_pred)
@@ -97,7 +97,16 @@ def main(dataloc, path_to_weights, model='vgg', batch_size=8, rgb=False):
     # load test data
     test_df = utils.load_test_data(dataloc)
 
-    categories = utils.define_categories(test_df, include_any=False)
+#     categories = utils.define_categories(test_df)
+    categories = [
+        'any',
+        'epidural',
+        'intraparenchymal',
+        'intraventricular',
+        'subarachnoid',
+        'subdural'
+    ]
+    print("CATEGORIES = {}".format(categories))
 
     # load model
     model = models(model, input_image_size=512, number_of_output_categories=len(categories))
@@ -107,7 +116,7 @@ def main(dataloc, path_to_weights, model='vgg', batch_size=8, rgb=False):
 
     # instantiate generator
     
-    test_generator = create_test_generator(test_df, categories, batch_size, rgb=rgb)
+    test_generator = create_test_generator(test_df, categories, batch_size)
 
     test_generator.__reset__() # make sure the generator is starting at index 0!!!
     # predict
@@ -129,7 +138,7 @@ if __name__ == '__main__':
     dataloc = '/ssd1'
     main(
         dataloc = dataloc,
-        path_to_weights = os.path.join(dataloc,'model_weights_vgg19_2019-10-14T07_33_22.602406.h5'),
+        path_to_weights = os.path.join(dataloc,'model_weights_vgg19_2019-11-02T20_35_40.895897.h5'),
         model = 'vgg19',
         rgb=True
     )

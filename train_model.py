@@ -76,7 +76,7 @@ class rsna_model(object):
     def build(self):
 
         # load training df
-        self.tdf = utils.load_training_data(self.dataloc)
+        self.tdf = utils.load_training_data(self.dataloc, stage=2)
 
         # drop missing image
         drop_idx = [i for i,row in self.tdf['filename'].iteritems() if fnmatch.fnmatch(row,'*ID_33fcf4d99*')]
@@ -126,7 +126,7 @@ class rsna_model(object):
                                                     factor=0.5, 
                                                     min_lr=0.00001)
 
-        checkpoint_name = os.path.join(self.dataloc,"model_weights_vgg19_{}.h5".format(self.datestamp))
+        checkpoint_name = "model_weights_vgg19_{}.h5".format(self.datestamp)
         checkpoint = ModelCheckpoint(
                                     checkpoint_name, 
                                     monitor='val_acc', 
@@ -159,7 +159,7 @@ if __name__ == '__main__':
     dataloc = '/ssd1'
     model = rsna_model(
         dataloc = '/ssd1', 
-        weights_path = os.path.join(dataloc,'model_weights_vgg19_2019-11-02T16_15_53.667387.h5'),
+        weights_path = os.path.join(dataloc,'model_weights_vgg19_2019-11-09T12_02_24.854862.h5'),
         model_name = 'vgg19',
         training_fraction = 1,
         batch_size = 8,

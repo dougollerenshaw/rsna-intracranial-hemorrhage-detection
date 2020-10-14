@@ -151,8 +151,8 @@ class Three_Channel_Generator():
 
             X[i,:,:,:] = image
 
-
-            y.append(self.df.iloc[self.position][self.ycols])
+            if (self.subset != 'test'):
+                y.append(self.df.iloc[self.position][self.ycols])
             self.position += 1
             if (self.position >= self.length):
                 self.position = 0
@@ -183,13 +183,13 @@ def make_y_image(generator, model, filename):
     fig.savefig(filename)
 
 
-def split_df_by_categories(dataloc):
+def split_df_by_categories(dataloc, stage=1):
 
-    traindf = pd.read_csv(os.path.join(dataloc,'stage_1_train.csv'))
+    traindf = pd.read_csv(os.path.join(dataloc,'stage_{}_train.csv'.format(stage)))
 
     traindf['type'] = traindf['ID'].map(lambda x:x.split('_')[2])
 
-    traindf['filename'] = traindf['ID'].map(lambda x:os.path.join(dataloc,'stage_1_train_images',('ID_' + x.split('_')[1] + '.dcm')))
+    traindf['filename'] = traindf['ID'].map(lambda x:os.path.join(dataloc,'stage_{}_train_images'.format(stage),('ID_' + x.split('_')[1] + '.dcm')))
 
     traindf['ID'] = traindf['ID'].map(lambda x:'ID_'+x.split('_')[1])
 
@@ -211,13 +211,13 @@ def split_df_by_categories(dataloc):
     return tdf_by_cat
 
 
-def load_training_data(dataloc):
+def load_training_data(dataloc, stage=1):
 
-    traindf = pd.read_csv(os.path.join(dataloc,'stage_1_train.csv'))
+    traindf = pd.read_csv(os.path.join(dataloc,'stage_{}_train.csv'.format(stage)))
 
     traindf['type'] = traindf['ID'].map(lambda x:x.split('_')[2])
 
-    traindf['filename'] = traindf['ID'].map(lambda x:os.path.join(dataloc,'stage_1_train_images',('ID_' + x.split('_')[1] + '.dcm')))
+    traindf['filename'] = traindf['ID'].map(lambda x:os.path.join(dataloc,'stage_{}_train_images'.format(stage),('ID_' + x.split('_')[1] + '.dcm')))
 
     traindf['ID'] = traindf['ID'].map(lambda x:'ID_'+x.split('_')[1])
 
@@ -237,13 +237,22 @@ def load_training_data(dataloc):
 
     return tdf
 
-def load_test_data(dataloc):
-    test_filenames = os.listdir(os.path.join(dataloc,'stage_1_test_images'))
+def load_test_data(dataloc, stage=1):
+    test_filenames = os.listdir(os.path.join(dataloc,'stage_{}_test_images'.format(stage)))
     d = {'filename':test_filenames}
-    categories = define_categories(include_any=False)
-    d.update({cat:np.zeros(len(test_filenames)) for cat in categories})
+    
     testdf = pd.DataFrame(d)
+    categories = [
+        'any',
+        'epidural',
+        'intraparenchymal',
+        'intraventricular',
+        'subarachnoid',
+        'subdural'
+    ]
+#     define_categories(testdf)
+    d.update({cat:np.zeros(len(test_filenames)) for cat in categories})
     testdf['ID'] = testdf['filename'].map(lambda x:'ID_'+x.split("_")[1][:-4])
-    testdf['filename'] = testdf['filename'].map(lambda x:os.path.join(dataloc,'stage_1_test_images',('ID_' + x.split('_')[1])))
+    testdf['filename'] = testdf['filename'].map(lambda x:os.path.join(dataloc,'stage_{}_test_images'.format(stage),('ID_' + x.split('_')[1])))
 
     return testdf
